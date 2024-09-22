@@ -71,16 +71,31 @@ compute_target = ComputeTarget.create(workspace=ws,
 
 
 
-#-----------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------------------------
 # Creating virtual environment for pipeline
-#------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------
 
+from azureml.core import Environment
 from azureml.core.conda_dependencies import CondaDependencies
 
-myenv = Environment('Telecome_churn_env')
-myenv_dep = CondaDependencies.create(pip_packages=['scikit-learn','pandas','numpy'])
+
+myenv = Environment('Telecomee_churn_env_1')
+
+# Define the dependencies (conda + pip)
+myenv_dep = CondaDependencies.create(
+    conda_packages=['scikit-learn', 'pandas', 'numpy'],  # Specify conda packages if any
+    pip_packages=['azureml-sdk']  # Include any additional pip packages like azureml-sdk if needed
+)
+
+# Attach the dependencies to the environment
 myenv.python.conda_dependencies = myenv_dep
+
+# Optionally, enabling Docker if using it for the environment
+myenv.docker.enabled = True
+myenv.docker.base_image = 'mcr.microsoft.com/azureml/base:latest'  # Specify a base image if needed
+
 myenv.register(workspace=ws)
+
 
 
 

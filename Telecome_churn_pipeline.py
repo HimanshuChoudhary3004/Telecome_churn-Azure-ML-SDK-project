@@ -1,10 +1,13 @@
 from azureml.core import Workspace, Dataset, Datastore, Experiment, Environment, ComputeTarget
+from azureml.core.runconfig import RunConfiguration
 
 # Accessing\Loading workspace, Enviornment and compute cluster
 
 ws= Workspace.from_config('.azureml\config')
 input_data = Dataset.get_by_name(ws,'Telecom_churn_dataset')
-my_env = Environment.get(ws,'Telecome_churn_env')
+my_env = Environment.get(ws,'Telecomee_churn_env')
+run_config = RunConfiguration()
+run_config.environment = my_env
 compute_target = ComputeTarget(ws,'AML-CC-01')
 
 
@@ -12,16 +15,17 @@ compute_target = ComputeTarget(ws,'AML-CC-01')
 from azureml.pipeline.core import Pipeline, PipelineData
 from azureml.pipeline.steps import PythonScriptStep
 
+
 cleaned_data = PipelineData('cleaned_data', ws.get_default_datastore())
 
 Data_cleaning = PythonScriptStep(name="Data_cleaning_Step",
                                 source_directory='.\scripts',               
                                 script_name='data_cleaning.py',
-                                inputs=[input_data.as_named_input('input_data')],
+                                inputs=[input_data.as_named_input('row_data')],
                                 outputs=[cleaned_data],
-                                arguments=['--input', 'input_data', '--output', cleaned_data],
+                                arguments=['--input','row_data','--output', cleaned_data],
                                 compute_target=compute_target,
-                                runconfig=my_env,
+                                runconfig=run_config
                                 )
 
 
@@ -34,7 +38,7 @@ Data_normalization = PythonScriptStep(name='Data_normalization',
                                       outputs=[normalized_data],
                                       arguments=['--input', cleaned_data,'--output',normalized_data],
                                       compute_target=compute_target,
-                                      runconfig=my_env,
+                                      runconfig=run_config,
                                       )
 
 split_data = PipelineData('split_data',ws.get_default_datastore())
@@ -45,7 +49,7 @@ Data_splitting = PythonScriptStep(name='Data_splitting',
                                   outputs=[split_data],
                                   arguments=['--input',normalized_data,'--output',split_data],
                                   compute_target=compute_target,
-                                  runconfig=my_env)
+                                  runconfig=run_config)
 
 
 model_output_data = PipelineData('model_output_data',ws.get_default_datastore())
@@ -56,7 +60,7 @@ Train_model = PythonScriptStep(name= 'Train_model',
                                outputs=[model_output_data],
                                arguments=['--input',split_data,'--output',model_output_data],
                                compute_target=compute_target,
-                               runconfig=my_env)
+                               runconfig=run_config)
 
 
 
