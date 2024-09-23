@@ -22,6 +22,12 @@ scaler = MinMaxScaler()
 normalized_df = scaler.fit_transform(df)
 normalized_df = pd.DataFrame(normalized_df, columns=df.columns)
 
+# Saving output file locally
+local_path = './outputs/df_normalized.csv'
+os.makedirs('./outputs',exist_ok=True)
+normalized_df.to_csv(local_path, index=False)
+
+
 # Create output directory if it doesn't exist
 os.makedirs(args.normalized_data, exist_ok=True)
 

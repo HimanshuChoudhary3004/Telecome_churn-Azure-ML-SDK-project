@@ -32,10 +32,15 @@ def main():
 
     feat_importance = abs(df_cleaned.corr()['Churn']).sort_values(ascending=False)[1:]
 
+    # saving output locally
+    local_path = './outputs/df_cleaned.csv'
+    os.makedirs('./outputs',exist_ok=True)
+    df_cleaned.to_csv(local_path, index=False)
+
     run.log("Feature Importance", feat_importance.to_dict())
 
     # Create the folder if it does not exist
-    import os
+    
     os.makedirs(args.cleaned_data, exist_ok=True)
 
     # Create the path

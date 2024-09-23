@@ -16,7 +16,7 @@ from azureml.pipeline.core import Pipeline, PipelineData
 from azureml.pipeline.steps import PythonScriptStep
 
 
-cleaned_data = PipelineData('cleaned_data', ws.get_default_datastore())
+cleaned_data = PipelineData('cleaned_data', ws.get_default_datastore(),output_mode="upload")
 
 Data_cleaning = PythonScriptStep(name="Data_cleaning_Step",
                                 source_directory='.\scripts',               
@@ -29,7 +29,7 @@ Data_cleaning = PythonScriptStep(name="Data_cleaning_Step",
                                 )
 
 
-normalized_data = PipelineData('normalized_data', ws.get_default_datastore())
+normalized_data = PipelineData('normalized_data', ws.get_default_datastore(),output_mode="upload")
 
 Data_normalization = PythonScriptStep(name='Data_normalization',
                                       source_directory='.\scripts',
@@ -41,7 +41,7 @@ Data_normalization = PythonScriptStep(name='Data_normalization',
                                       runconfig=run_config,
                                       )
 
-split_data = PipelineData('split_data',ws.get_default_datastore())
+split_data = PipelineData('split_data',ws.get_default_datastore(),output_mode="upload")
 Data_splitting = PythonScriptStep(name='Data_splitting',
                                   source_directory='.\scripts',
                                   script_name='data_split.py',
@@ -52,7 +52,7 @@ Data_splitting = PythonScriptStep(name='Data_splitting',
                                   runconfig=run_config)
 
 
-model_output_data = PipelineData('model_output_data',ws.get_default_datastore())
+model_output_data = PipelineData('model_output_data',ws.get_default_datastore(),output_mode="upload")
 Train_model = PythonScriptStep(name= 'Train_model',
                                source_directory='.\scripts',
                                script_name='train_model.py',
