@@ -16,6 +16,7 @@ from azureml.pipeline.core import Pipeline, PipelineData
 from azureml.pipeline.steps import PythonScriptStep
 
 
+
 cleaned_data = PipelineData('cleaned_data', ws.get_default_datastore(),output_mode="upload")
 
 Data_cleaning = PythonScriptStep(name="Data_cleaning_Step",
