@@ -1,0 +1,113 @@
+from azureml.core import Workspace, Environment, Dataset, ComputeTarget, ScriptRunConfig
+from azureml.core.compute import AmlCompute
+from azureml.train.hyperdrive import HyperDriveConfig, BayesianParameterSampling, choice, uniform, PrimaryMetricGoal
+from azureml.train.hyperdrive import BanditPolicy
+from azureml.core import Experiment
+
+# Load Workspace and Environment
+ws = Workspace.from_config('.azureml/config')
+input_dataset = Dataset.get_by_name(workspace=ws, name='Telecom_churn_dataset').as_named_input('row_data')
+my_env = Environment.get(workspace=ws, name='Telecome_churn env', version='6')
+
+# Set up compute target
+compute_cluster_name = 'AML-CC-001'
+if compute_cluster_name in ws.compute_targets:
+    print('Compute target already exists, firing it up...')
+    compute_target = ComputeTarget(ws, compute_cluster_name)
+else:
+    print('Creating compute cluster...')
+    provisioning_config = AmlCompute.provisioning_configuration(vm_size='Standard_E16s_v3', max_nodes=2)
+    compute_target = ComputeTarget.create(ws, compute_cluster_name, provisioning_config)
+
+# Script Run Configuration
+script_run_config = ScriptRunConfig(source_directory='.',
+                                    script='LogReg_Training_script.py',
+                                    arguments=['--input_data', input_dataset],
+                                    environment=my_env,
+                                    compute_target=compute_target)
+
+# Hyperparameter Sampling
+param_space = BayesianParameterSampling({
+    '--penalty': choice(['l1', 'l2']),
+    '--tol': uniform(1e-5, 1e-1),
+    '--C': uniform(0.001, 10),
+    '--solver': choice(['lbfgs', 'liblinear', 'saga', 'newton-cg']),
+    '--max_iter': choice([50, 200]),
+    '--l1_ratio': uniform(0, 1)  # Only for elastic net
+})
+
+# Termination Policy
+termination_policy = BanditPolicy(evaluation_interval=1,
+                                   slack_factor=0.1,
+                                   delay_evaluation=5)
+
+# HyperDrive Configuration
+LR_hd_config = HyperDriveConfig(hyperparameter_sampling=param_space,
+                                primary_metric_name='recall',
+                                primary_metric_goal=PrimaryMetricGoal.MAXIMIZE,
+                                max_concurrent_runs=1,
+                                max_duration_minutes=90,
+                                max_total_runs=150,
+                                policy=termination_policy,
+                                run_config=script_run_config)
+
+# Submit the Experiment
+print("Creating Experiment...")
+hd_experiment = Experiment(ws, 'LogReg_Hyperdrive_Telecome')
+print("Submitting Hyperdrive Run...")
+LR_hyperdrive_run = hd_experiment.submit(LR_hd_config)
+
+# Wait for completion
+print("Waiting for completion...")
+LR_hyperdrive_run.wait_for_completion(show_output=True)
+
+# Getting best run details
+print('Getting Best run details...')
+best_run = LR_hyperdrive_run.get_best_run_by_primary_metric()
+if best_run:
+    best_hyper_params = best_run.get_details()['runDefinition']['arguments']
+    best_metric = best_run.get_metrics()
+
+    print(f'\nbest run id: {best_run.id}')
+    print('\nBest hyperparameters are:')
+    for i in range(0, len(best_hyper_params), 2):
+        print(f'\n {best_hyper_params[i]} : {best_hyper_params[i + 1]}')
+    
+    print('Best run metrics are:')
+    for metric_name, metric_value in best_metric.items():
+        print(f'{metric_name}: {metric_value}')
+else:
+    print("No best run found. Please check the Hyperdrive run configuration and logs.")
+
+
+
+# Retrieve the best run based on your primary metric (e.g., accuracy)
+print("Retrieving the best run based on the primary metric...")
+best_run = hyperdrive_run.get_best_run_by_primary_metric()
+
+# Get the metrics from the best run
+metrics = best_run.get_metrics()
+print("Best run metrics:", metrics)
+
+# Get the hyperparameters of the best run
+hyperparameters = best_run.get_details()['runDefinition']['arguments']
+print("Best run hyperparameters:", hyperparameters)
+
+# Register the model from the best run
+print("Registering the model from the best run...")
+model = best_run.register_model(model_path='outputs/Log_Regression_Tele.pkl',
+                                model_name='Telecome_churn_LogReg',
+                                tags={'source': 'hyperdrive-best-run', 'algorithm': 'Logistic_Regression'},
+                                properties={
+                                    'accuracy': metrics.get('accuracy'),
+                                    'Recall': metrics.get('recall'),
+                                    'Precision': metrics.get('precision'),
+                                    'f1_score': metrics.get('f1'),
+                                    'AUC_Score': metrics.get('auc'),
+                                    'Best Hyperparameters': str(hyperparameters)
+                                },
+                                description='Logistic Regression model trained on the Telecom churn dataset using hyperdrive optimization.')
+
+print("Model registered successfully with name:", model.name)
+
+
